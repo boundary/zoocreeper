@@ -41,4 +41,7 @@ public class CommonOptions {
             metaVar = "<exclude_regex>")
     List<String> excludePaths = new ArrayList<String>();
 
+    @Option(name = "-v", aliases = { "--verbose" }, usage = "Verbose logging output", required = false)
+    boolean verbose;
+
 }
