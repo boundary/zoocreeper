@@ -15,7 +15,6 @@
  */
 package com.boundary.zoocreeper;
 
-import ch.qos.logback.classic.Level;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
@@ -238,9 +237,7 @@ public class Backup implements Watcher {
             System.exit(1);
         }
         if (options.verbose) {
-            ch.qos.logback.classic.Logger baseLogger = (ch.qos.logback.classic.Logger)
-                    LoggerFactory.getLogger(Backup.class.getPackage().getName());
-            baseLogger.setLevel(Level.DEBUG);
+            LoggingUtils.enableDebugLogging(Backup.class.getPackage().getName());
         }
         Backup backup = new Backup(new DefaultZooKeeperFactory(), options);
         OutputStream os;

@@ -15,18 +15,22 @@
  */
 package com.boundary.zoocreeper;
 
-import org.kohsuke.args4j.Option;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Options to the {@link Restore} command.
+ * Utilities for logging.
  */
-public class RestoreOptions extends CommonOptions {
+public final class LoggingUtils {
 
-    @Option(name = "-f", aliases = { "--file" }, usage = "Input file to restore from (default: stdin)",
-            required = false, metaVar = "<filename>")
-    String inputFile = "-";
+    private LoggingUtils() {}
 
-    @Option(name = "--overwrite-existing", usage = "Overwrite existing znodes", required = false)
-    boolean overwriteExisting = false;
-
+    /**
+     * Enables debug logging on the specified logger name.
+     */
+    public static void enableDebugLogging(String packageName) {
+        Logger logger = (Logger) LoggerFactory.getLogger(packageName);
+        logger.setLevel(Level.DEBUG);
+    }
 }
