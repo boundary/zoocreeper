@@ -44,4 +44,8 @@ public class CommonOptions {
     @Option(name = "-v", aliases = { "--verbose" }, usage = "Verbose logging output", required = false)
     boolean verbose;
 
+    @Option(name = "--root-path", usage = "ZooKeeper root path for backup/restore (default: '/')",
+            required = false, metaVar = "<root_path>", handler = ZooKeeperPathOptionHandler.class)
+    String rootPath = "/";
+
 }

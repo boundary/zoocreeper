@@ -97,6 +97,26 @@ public class Restore implements Watcher {
         }
     }
 
+    private static String getParentPath(String path) {
+        final int lastSlash = path.lastIndexOf('/');
+        return (lastSlash > 0) ? path.substring(0, lastSlash) : "/";
+    }
+
+    private static void createPath(ZooKeeper zk, String path) throws KeeperException, InterruptedException {
+        if ("/".equals(path)) {
+            return;
+        }
+        if (zk.exists(path, false) == null) {
+            createPath(zk, getParentPath(path));
+            LOGGER.info("Creating path: {}", path);
+            try {
+                zk.create(path, null, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } catch (NodeExistsException e) {
+                // Race condition
+            }
+        }
+    }
+
     private void doRestore(JsonParser jp, ZooKeeper zk) throws IOException, KeeperException, InterruptedException {
         expectNextToken(jp, JsonToken.START_OBJECT);
         while (jp.nextToken() != JsonToken.END_OBJECT) {
@@ -105,6 +125,11 @@ public class Restore implements Watcher {
                 LOGGER.info("Skipping ephemeral ZNode: {}", zNode.path);
                 continue;
             }
+            if (!zNode.path.startsWith(options.rootPath)) {
+                LOGGER.info("Skipping ZNode (not under root path '{}'): {}", options.rootPath, zNode.path);
+                continue;
+            }
+            createPath(zk, getParentPath(zNode.path));
             try {
                 zk.create(zNode.path, zNode.data, zNode.acls, CreateMode.PERSISTENT);
                 LOGGER.info("Created node: {}", zNode.path);

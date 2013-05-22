@@ -87,7 +87,12 @@ public class Backup implements Watcher {
                 jgen.setPrettyPrinter(new DefaultPrettyPrinter());
             }
             jgen.writeStartObject();
-            doBackup(zk, jgen, "/");
+            if (zk.exists(options.rootPath, false) == null) {
+                LOGGER.warn("Root path not found: {}", options.rootPath);
+            }
+            else {
+                doBackup(zk, jgen, options.rootPath);
+            }
             jgen.writeEndObject();
         } finally {
             if (jgen != null) {
