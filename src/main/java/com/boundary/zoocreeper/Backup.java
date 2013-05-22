@@ -83,7 +83,9 @@ public class Backup implements Watcher {
         try {
             zk = zooKeeperFactory.createZooKeeper(options, this);
             jgen = JSON_FACTORY.createGenerator(os);
-            jgen.setPrettyPrinter(new DefaultPrettyPrinter());
+            if (options.prettyPrint) {
+                jgen.setPrettyPrinter(new DefaultPrettyPrinter());
+            }
             jgen.writeStartObject();
             doBackup(zk, jgen, "/");
             jgen.writeEndObject();
@@ -130,7 +132,7 @@ public class Backup implements Watcher {
             final Stat stat = new Stat();
             List<ACL> acls = nullToEmpty(zk.getACL(path, stat));
             if (stat.getEphemeralOwner() != 0 && !options.backupEphemeral) {
-                LOGGER.info("Skipping ephemeral node: {}", path);
+                LOGGER.debug("Skipping ephemeral node: {}", path);
                 return;
             }
             byte[] data = null;

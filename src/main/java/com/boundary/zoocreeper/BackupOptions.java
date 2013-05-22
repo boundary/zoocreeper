@@ -33,4 +33,7 @@ class BackupOptions extends CommonOptions {
             required = false, metaVar = "<filename>")
     String outputFile = "-";
 
+    @Option(name = "--pretty-print", usage = "Pretty printing of JSON output", required = false)
+    boolean prettyPrint = false;
+
 }
