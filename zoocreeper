@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+##
+### Copyright 2013, Boundary
+###
+### Licensed under the Apache License, Version 2.0 (the "License");
+### you may not use this file except in compliance with the License.
+### You may obtain a copy of the License at
+###
+###     http://www.apache.org/licenses/LICENSE-2.0
+###
+### Unless required by applicable law or agreed to in writing, software
+### distributed under the License is distributed on an "AS IS" BASIS,
+### WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+### See the License for the specific language governing permissions and
+### limitations under the License.
+###
+
+JAVA_BIN=`which java`
+ZC_PATH="./target/zoocreeper-1.0-SNAPSHOT.jar"
+
+DEFAULT_ZK_HOST="localhost"
+DEFAULT_ZK_PORT="2181"
+DEFAULT_CONNECT_OPTIONS="-z $DEFAULT_ZK_HOST:$DEFAULT_ZK_PORT"
+
+DEFAULT_DUMP_OPTIONS="--pretty-print -z $DEFAULT_ZK_HOST:$DEFAULT_ZK_PORT"
+DEFAULT_LOAD_OPTIONS="$DEFAULT_CONNECT_OPTIONS"
+
+if [ $1 == "dump" ]; then
+  $JAVA_BIN -jar $ZC_PATH $DEFAULT_DUMP_OPTIONS
+fi
+
+if [ $1 == "load" ]; then
+  data=$(</dev/stdin)
+  echo $data | $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Restore $DEFAULT_LOAD_OPTIONS
+fi
