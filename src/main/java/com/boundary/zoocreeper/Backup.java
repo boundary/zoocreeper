@@ -140,18 +140,16 @@ public class Backup implements Watcher {
                 LOGGER.debug("Skipping ephemeral node: {}", path);
                 return;
             }
-            byte[] data = null;
-            if (stat.getDataLength() > 0) {
-                Stat dataStat = new Stat();
+
+            final Stat dataStat = new Stat();
+            byte[] data = zk.getData(path, false, dataStat);
+            for (int i = 0; stat.compareTo(dataStat) != 0 && i < options.numRetries; i++) {
+                LOGGER.warn("Retrying getACL / getData to read consistent state");
+                acls = zk.getACL(path, stat);
                 data = zk.getData(path, false, dataStat);
-                for (int i = 0; stat.compareTo(dataStat) != 0 && i < options.numRetries; i++) {
-                    LOGGER.warn("Retrying getACL / getData to read consistent state");
-                    acls = zk.getACL(path, stat);
-                    data = zk.getData(path, false, dataStat);
-                }
-                if (stat.compareTo(dataStat) != 0) {
-                    throw new IllegalStateException("Unable to read consistent data for znode: " + path);
-                }
+            }
+            if (stat.compareTo(dataStat) != 0) {
+                throw new IllegalStateException("Unable to read consistent data for znode: " + path);
             }
             LOGGER.debug("Backing up node: {}", path);
             dumpNode(jgen, path, stat, acls, data);
