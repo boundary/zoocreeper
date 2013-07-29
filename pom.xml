@@ -12,9 +12,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-        <version.args4j>2.0.23</version.args4j>
+        <version.args4j>2.0.25</version.args4j>
         <version.guava>14.0.1</version.guava>
-        <version.jackson>2.2.1</version.jackson>
+        <version.jackson>2.2.2</version.jackson>
         <version.logback>1.0.13</version.logback>
         <version.slf4j>1.7.5</version.slf4j>
         <version.zookeeper>3.4.5</version.zookeeper>
@@ -91,7 +91,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
-                <version>2.0</version>
+                <version>2.1</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -136,7 +136,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
-                <version>2.0</version>
+                <version>2.1</version>
                 <configuration>
                     <createDependencyReducedPom>true</createDependencyReducedPom>
                     <filters>

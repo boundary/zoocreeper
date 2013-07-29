@@ -17,24 +17,25 @@
 ###
 
 JAVA_BIN=`which java`
-ZC_PATH="./target/zoocreeper-1.0-SNAPSHOT.jar"
+ZC_BASEDIR=`dirname "$0"`
+ZC_BASEDIR=`cd "$ZC_BASEDIR" && pwd`
+ZC_PATH="$ZC_BASEDIR/target/zoocreeper-1.0-SNAPSHOT.jar"
 
-DEFAULT_ZK_HOST="localhost"
-DEFAULT_ZK_PORT="2181"
-DEFAULT_CONNECT_OPTIONS="-z $DEFAULT_ZK_HOST:$DEFAULT_ZK_PORT"
-
-DEFAULT_DUMP_OPTIONS="--pretty-print -z $DEFAULT_ZK_HOST:$DEFAULT_ZK_PORT"
-DEFAULT_LOAD_OPTIONS="$DEFAULT_CONNECT_OPTIONS"
+if [ ! -f "$ZC_PATH" ]; then
+    echo "Distribution not found: $ZC_PATH" >&2
+    exit 1
+fi
 
 case "$1" in
   dump)
-    $JAVA_BIN -jar $ZC_PATH $DEFAULT_DUMP_OPTIONS
+    shift
+    exec $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Backup "$@"
     ;;
   load)
-    data=$(</dev/stdin)
-    echo $data | $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Restore $DEFAULT_LOAD_OPTIONS
+    shift
+    exec $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Restore "$@"
     ;;
   *)
-    echo "Usage: $0 {dump|load}"
+    echo "Usage: $0 {dump|load}" >&2
     exit 1
 esac
