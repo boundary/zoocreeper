@@ -17,4 +17,5 @@ ZooKeeper connection string.
 
 Also included is a BASH helper script:
 
-    $ zoocreeper dump
+    $ zoocreeper dump > dumpfile.json
+    $ cat dumpfile.json | zoocreeper load
