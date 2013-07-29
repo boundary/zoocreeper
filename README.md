@@ -10,7 +10,11 @@ ZooKeeper data to a JSON file. It supports the following features:
 
 To see the available options, run:
 
-java -jar zoocreeper-<VERSION>.jar --help
+    $ java -jar zoocreeper-<VERSION>.jar --help
 
 The only required option is '-z'/'--zk-connect' which is a standard
 ZooKeeper connection string.
+
+Also included is a BASH helper script:
+
+    $ zoocreeper dump
