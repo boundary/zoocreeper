@@ -16,10 +16,12 @@
 package com.boundary.zoocreeper;
 
 import org.kohsuke.args4j.Option;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * Common options to both the {@link Backup} and {@link Restore} commands.
@@ -38,8 +40,12 @@ public class CommonOptions {
     boolean compress = false;
 
     @Option(name = "--exclude", usage = "Regular expression of paths to exclude", required = false,
-            metaVar = "<exclude_regex>")
-    List<String> excludePaths = new ArrayList<String>();
+            metaVar = "<exclude_regex>", handler = RegexOptionHandler.class)
+    List<Pattern> excludePatterns = new ArrayList<Pattern>();
+
+    @Option(name = "--include", usage = "Regular expression of paths to include", required = false,
+            metaVar = "<include_regex>", handler = RegexOptionHandler.class)
+    List<Pattern> includePatterns = new ArrayList<Pattern>();
 
     @Option(name = "-v", aliases = { "--verbose" }, usage = "Verbose logging output", required = false)
     boolean verbose;
@@ -47,5 +53,35 @@ public class CommonOptions {
     @Option(name = "--root-path", usage = "ZooKeeper root path for backup/restore (default: '/')",
             required = false, metaVar = "<root_path>", handler = ZooKeeperPathOptionHandler.class)
     String rootPath = "/";
+
+    @Option(name = "-h", aliases = { "--help" }, usage = "Show usage information")
+    boolean help;
+
+    public boolean isPathExcluded(Logger logger, String path) {
+        boolean ignored = false;
+        for (Pattern excludePattern : this.excludePatterns) {
+            if (excludePattern.matcher(path).find()) {
+                logger.info("Excluding path: {} matching pattern: {}", path, excludePattern.pattern());
+                ignored = true;
+                break;
+            }
+        }
+        return ignored;
+    }
+
+    public boolean isPathIncluded(Logger logger, String path) {
+        if (this.includePatterns.isEmpty()) {
+            return true;
+        }
+        boolean included = false;
+        for (Pattern includePattern : this.includePatterns) {
+            if (includePattern.matcher(path).find()) {
+                logger.info("Including path: {} matching pattern: {}", path, includePattern.pattern());
+                included = true;
+                break;
+            }
+        }
+        return included;
+    }
 
 }

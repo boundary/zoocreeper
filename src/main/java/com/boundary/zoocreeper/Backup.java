@@ -19,7 +19,6 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.io.Closeables;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
@@ -39,7 +38,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -64,17 +62,12 @@ public class Backup implements Watcher {
     public static final String FIELD_ACL_PERMS = "perms";
     private final ZooKeeperFactory zooKeeperFactory;
     private final BackupOptions options;
-    private final List<Pattern> excludePatterns;
 
     public Backup(ZooKeeperFactory zooKeeperFactory, BackupOptions options) {
         Preconditions.checkNotNull(zooKeeperFactory);
         Preconditions.checkNotNull(options);
         this.zooKeeperFactory = zooKeeperFactory;
         this.options = options;
-        excludePatterns = Lists.newArrayListWithExpectedSize(options.excludePaths.size());
-        for (String path : options.excludePaths) {
-            excludePatterns.add(Pattern.compile(path));
-        }
     }
 
     public void backup(OutputStream os) throws InterruptedException, IOException, KeeperException {
@@ -102,18 +95,6 @@ public class Backup implements Watcher {
                 zk.close();
             }
         }
-    }
-
-    private boolean isExcluded(String path) {
-        boolean ignored = false;
-        for (Pattern pattern : this.excludePatterns) {
-            if (pattern.matcher(path).find()) {
-                LOGGER.info("Excluding path: {} matching pattern: {}", path, pattern.pattern());
-                ignored = true;
-                break;
-            }
-        }
-        return ignored;
     }
 
     private static String createFullPath(String path, String childPath) {
@@ -157,8 +138,10 @@ public class Backup implements Watcher {
             Collections.sort(childPaths);
             for (String childPath : childPaths) {
                 final String fullChildPath = createFullPath(path, childPath);
-                if (!isExcluded(fullChildPath)) {
-                    doBackup(zk, jgen, fullChildPath);
+                if (!this.options.isPathExcluded(LOGGER, fullChildPath)) {
+                    if (this.options.isPathIncluded(LOGGER, fullChildPath)) {
+                        doBackup(zk, jgen, fullChildPath);
+                    }
                 }
             }
         } catch (NoNodeException e) {
@@ -228,16 +211,25 @@ public class Backup implements Watcher {
         LOGGER.debug("Received watch event: {}", event);
     }
 
+    private static void usage(CmdLineParser parser, int exitCode) {
+        System.err.println(Backup.class.getName() + " [options...] arguments...");
+        parser.printUsage(System.err);
+        System.exit(exitCode);
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException, KeeperException {
         BackupOptions options = new BackupOptions();
         CmdLineParser parser = new CmdLineParser(options);
         try {
             parser.parseArgument(args);
+            if (options.help) {
+                usage(parser, 0);
+            }
         } catch (CmdLineException e) {
-            System.err.println(e.getLocalizedMessage());
-            System.err.println(Backup.class.getName() + " [options...] arguments...");
-            parser.printUsage(System.err);
-            System.exit(1);
+            if (!options.help) {
+                System.err.println(e.getLocalizedMessage());
+            }
+            usage(parser, options.help ? 0 : 1);
         }
         if (options.verbose) {
             LoggingUtils.enableDebugLogging(Backup.class.getPackage().getName());

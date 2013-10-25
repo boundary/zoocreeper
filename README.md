@@ -8,7 +8,7 @@ This project provides a command-line utility which can be used to back up
 ZooKeeper data to a JSON file. It supports the following features:
 
 *   Ignores ephemeral nodes when backing up by default.
-*   Able to ignore ZooKeeper paths using '--exclude' regular expressions.
+*   Able to customize which ZooKeeper paths are backed up or restored using '--exclude' / '--include' regular expressions.
 *   Optional compression of the backup file using GZIP.
 
 Build
@@ -39,5 +39,5 @@ ZooKeeper connection string.
 
 Also included is a bash helper script:
 
-    $ zoocreeper dump -z 127.0.0.1 > dumpfile.json
-    $ cat dumpfile.json | zoocreeper load -z 127.0.0.1
+    $ ./zoocreeper dump -z 127.0.0.1 > dumpfile.json
+    $ cat dumpfile.json | ./zoocreeper load -z 127.0.0.1

@@ -17,9 +17,11 @@
 ###
 
 JAVA_BIN=`which java`
-ZC_BASEDIR=`dirname "$0"`
-ZC_BASEDIR=`cd "$ZC_BASEDIR" && pwd`
-ZC_PATH="$ZC_BASEDIR/target/zoocreeper-1.0-SNAPSHOT.jar"
+if [ -z "$ZC_PATH" ]; then
+    ZC_BASEDIR=`dirname "$0"`
+    ZC_BASEDIR=`cd "$ZC_BASEDIR" && pwd`
+    ZC_PATH="$ZC_BASEDIR/target/zoocreeper-1.0-SNAPSHOT.jar"
+fi
 
 if [ ! -f "$ZC_PATH" ]; then
     echo "Distribution not found: $ZC_PATH" >&2
@@ -27,15 +29,15 @@ if [ ! -f "$ZC_PATH" ]; then
 fi
 
 case "$1" in
-  dump)
-    shift
-    exec $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Backup "$@"
-    ;;
-  load)
-    shift
-    exec $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Restore "$@"
-    ;;
-  *)
-    echo "Usage: $0 {dump|load}" >&2
-    exit 1
+    dump)
+        shift
+        exec $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Backup "$@"
+        ;;
+    load)
+        shift
+        exec $JAVA_BIN -cp $ZC_PATH com.boundary.zoocreeper.Restore "$@"
+        ;;
+    *)
+        echo "Usage: $0 {dump|load}" >&2
+        exit 1
 esac

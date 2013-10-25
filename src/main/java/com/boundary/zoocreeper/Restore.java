@@ -129,6 +129,9 @@ public class Restore implements Watcher {
                 LOGGER.info("Skipping ZNode (not under root path '{}'): {}", options.rootPath, zNode.path);
                 continue;
             }
+            if (options.isPathExcluded(LOGGER, zNode.path) || !options.isPathIncluded(LOGGER, zNode.path)) {
+                continue;
+            }
             createPath(zk, getParentPath(zNode.path));
             try {
                 zk.create(zNode.path, zNode.data, zNode.acls, CreateMode.PERSISTENT);
@@ -248,16 +251,25 @@ public class Restore implements Watcher {
         LOGGER.debug("Received watch event: {}", event);
     }
 
+    private static void usage(CmdLineParser parser, int exitCode) {
+        System.err.println(Restore.class.getName() + " [options...] arguments...");
+        parser.printUsage(System.err);
+        System.exit(exitCode);
+    }
+
     public static void main(String[] args) throws IOException, InterruptedException, KeeperException {
         RestoreOptions options = new RestoreOptions();
         CmdLineParser parser = new CmdLineParser(options);
         try {
             parser.parseArgument(args);
+            if (options.help) {
+                usage(parser, 0);
+            }
         } catch (CmdLineException e) {
-            System.err.println(e.getLocalizedMessage());
-            System.err.println(Restore.class.getName() + " [options...] arguments...");
-            parser.printUsage(System.err);
-            System.exit(1);
+            if (!options.help) {
+                System.err.println(e.getLocalizedMessage());
+            }
+            usage(parser, options.help ? 0 : 1);
         }
         if (options.verbose) {
             LoggingUtils.enableDebugLogging(Restore.class.getPackage().getName());
@@ -265,6 +277,7 @@ public class Restore implements Watcher {
         InputStream is = null;
         try {
             if ("-".equals(options.inputFile)) {
+                LOGGER.info("Restoring from stdin");
                 is = new BufferedInputStream(System.in);
             }
             else {
