@@ -22,13 +22,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
-import org.apache.zookeeper.CreateMode;
-import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.*;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs.Ids;
-import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Id;
 import org.kohsuke.args4j.CmdLineException;
@@ -41,6 +37,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
@@ -54,6 +51,7 @@ public class Restore implements Watcher {
 
     private final ZooKeeperFactory zooKeeperFactory;
     private final RestoreOptions options;
+    private final List<BackupZNode> path = Lists.newArrayList();
 
     public Restore(ZooKeeperFactory zooKeeperFactory, RestoreOptions options) {
         this.zooKeeperFactory = zooKeeperFactory;
@@ -117,10 +115,41 @@ public class Restore implements Watcher {
         }
     }
 
+    private void restoreNode(ZooKeeper zk, BackupZNode zNode) throws KeeperException, InterruptedException {
+        createPath(zk, getParentPath(zNode.path));
+        try {
+            zk.create(zNode.path, zNode.data, zNode.acls, CreateMode.PERSISTENT);
+            LOGGER.info("Created node: {}", zNode.path);
+        } catch (NodeExistsException e) {
+            if (options.overwriteExisting) {
+                // TODO: Compare with current data / acls
+                zk.setACL(zNode.path, zNode.acls, -1);
+                zk.setData(zNode.path, zNode.data, -1);
+            }
+            else {
+                LOGGER.warn("Node already exists: {}", zNode.path);
+            }
+        }
+    }
+
     private void doRestore(JsonParser jp, ZooKeeper zk) throws IOException, KeeperException, InterruptedException {
         expectNextToken(jp, JsonToken.START_OBJECT);
+        final Set<String> createdPaths = Sets.newHashSet();
         while (jp.nextToken() != JsonToken.END_OBJECT) {
             final BackupZNode zNode = readZNode(jp, jp.getCurrentName());
+            // We are the root
+            if (path.isEmpty()) {
+                path.add(zNode);
+            } else {
+                for (ListIterator<BackupZNode> it = path.listIterator(path.size()); it.hasPrevious(); ) {
+                    final BackupZNode parent = it.previous();
+                    if (zNode.path.startsWith(parent.path)) {
+                        break;
+                    }
+                    it.remove();
+                }
+                path.add(zNode);
+            }
             if (zNode.ephemeralOwner != 0) {
                 LOGGER.info("Skipping ephemeral ZNode: {}", zNode.path);
                 continue;
@@ -132,18 +161,9 @@ public class Restore implements Watcher {
             if (options.isPathExcluded(LOGGER, zNode.path) || !options.isPathIncluded(LOGGER, zNode.path)) {
                 continue;
             }
-            createPath(zk, getParentPath(zNode.path));
-            try {
-                zk.create(zNode.path, zNode.data, zNode.acls, CreateMode.PERSISTENT);
-                LOGGER.info("Created node: {}", zNode.path);
-            } catch (NodeExistsException e) {
-                if (options.overwriteExisting) {
-                    // TODO: Compare with current data / acls
-                    zk.setACL(zNode.path, zNode.acls, -1);
-                    zk.setData(zNode.path, zNode.data, -1);
-                }
-                else {
-                    LOGGER.warn("Node already exists: {}", zNode.path);
+            for (BackupZNode pathComponent : path) {
+                if (createdPaths.add(pathComponent.path)) {
+                    restoreNode(zk, pathComponent);
                 }
             }
         }
