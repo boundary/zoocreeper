@@ -22,8 +22,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.Closeables;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
@@ -43,7 +41,7 @@ import java.util.zip.GZIPOutputStream;
 /**
  * Backup command.
  */
-public class Backup implements Watcher {
+public class Backup {
     private static final Logger LOGGER = LoggerFactory.getLogger(Backup.class);
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
     public static final String FIELD_AVERSION = "aversion";
@@ -60,21 +58,17 @@ public class Backup implements Watcher {
     public static final String FIELD_ACL_ID = "id";
     public static final String FIELD_ACL_SCHEME = "scheme";
     public static final String FIELD_ACL_PERMS = "perms";
-    private final ZooKeeperFactory zooKeeperFactory;
     private final BackupOptions options;
 
-    public Backup(ZooKeeperFactory zooKeeperFactory, BackupOptions options) {
-        Preconditions.checkNotNull(zooKeeperFactory);
-        Preconditions.checkNotNull(options);
-        this.zooKeeperFactory = zooKeeperFactory;
-        this.options = options;
+    public Backup(BackupOptions options) {
+        this.options = Preconditions.checkNotNull(options);
     }
 
     public void backup(OutputStream os) throws InterruptedException, IOException, KeeperException {
         JsonGenerator jgen = null;
         ZooKeeper zk = null;
         try {
-            zk = zooKeeperFactory.createZooKeeper(options, this);
+            zk = options.createZooKeeper(LOGGER);
             jgen = JSON_FACTORY.createGenerator(os);
             if (options.prettyPrint) {
                 jgen.setPrettyPrinter(new DefaultPrettyPrinter());
@@ -82,8 +76,7 @@ public class Backup implements Watcher {
             jgen.writeStartObject();
             if (zk.exists(options.rootPath, false) == null) {
                 LOGGER.warn("Root path not found: {}", options.rootPath);
-            }
-            else {
+            } else {
                 doBackup(zk, jgen, options.rootPath);
             }
             jgen.writeEndObject();
@@ -101,8 +94,7 @@ public class Backup implements Watcher {
         final String fullChildPath;
         if (path.endsWith("/")) {
             fullChildPath = path + childPath;
-        }
-        else {
+        } else {
             fullChildPath = path + '/' + childPath;
         }
         return fullChildPath;
@@ -178,7 +170,7 @@ public class Backup implements Watcher {
         jgen.writeNumberField(FIELD_MZXID, stat.getMzxid());
 
         // The number of children of this znode.
-        // jgen.writeNumberField("numChildren", stat.getNumChildren());
+        jgen.writeNumberField("numChildren", stat.getNumChildren());
 
         // last modified children?
         jgen.writeNumberField(FIELD_PZXID, stat.getPzxid());
@@ -188,8 +180,7 @@ public class Backup implements Watcher {
 
         if (data != null) {
             jgen.writeBinaryField(FIELD_DATA, data);
-        }
-        else {
+        } else {
             jgen.writeNullField(FIELD_DATA);
         }
 
@@ -204,11 +195,6 @@ public class Backup implements Watcher {
         jgen.writeEndArray();
 
         jgen.writeEndObject();
-    }
-
-    @Override
-    public void process(WatchedEvent event) {
-        LOGGER.debug("Received watch event: {}", event);
     }
 
     private static void usage(CmdLineParser parser, int exitCode) {
@@ -234,12 +220,11 @@ public class Backup implements Watcher {
         if (options.verbose) {
             LoggingUtils.enableDebugLogging(Backup.class.getPackage().getName());
         }
-        Backup backup = new Backup(new DefaultZooKeeperFactory(), options);
+        Backup backup = new Backup(options);
         OutputStream os;
         if ("-".equals(options.outputFile)) {
             os = System.out;
-        }
-        else {
+        } else {
             os = new BufferedOutputStream(new FileOutputStream(options.outputFile));
         }
         try {

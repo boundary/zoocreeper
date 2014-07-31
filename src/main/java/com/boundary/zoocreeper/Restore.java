@@ -18,6 +18,7 @@ package com.boundary.zoocreeper;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -44,18 +45,16 @@ import java.util.zip.GZIPInputStream;
 /**
  * Command-line utility used to restore a ZK backup.
  */
-public class Restore implements Watcher {
+public class Restore {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Restore.class);
     private static final JsonFactory JSON_FACTORY = new JsonFactory();
 
-    private final ZooKeeperFactory zooKeeperFactory;
     private final RestoreOptions options;
     private final List<BackupZNode> path = Lists.newArrayList();
 
-    public Restore(ZooKeeperFactory zooKeeperFactory, RestoreOptions options) {
-        this.zooKeeperFactory = zooKeeperFactory;
-        this.options = options;
+    public Restore(RestoreOptions options) {
+        this.options = Preconditions.checkNotNull(options);
     }
 
     /**
@@ -70,7 +69,7 @@ public class Restore implements Watcher {
         JsonParser jp = null;
         try {
             jp = JSON_FACTORY.createParser(inputStream);
-            zk = zooKeeperFactory.createZooKeeper(options, this);
+            zk = options.createZooKeeper(LOGGER);
             doRestore(jp, zk);
         } finally {
             if (zk != null) {
@@ -125,8 +124,7 @@ public class Restore implements Watcher {
                 // TODO: Compare with current data / acls
                 zk.setACL(zNode.path, zNode.acls, -1);
                 zk.setData(zNode.path, zNode.data, -1);
-            }
-            else {
+            } else {
                 LOGGER.warn("Node already exists: {}", zNode.path);
             }
         }
@@ -198,19 +196,16 @@ public class Restore implements Watcher {
             seenFields.add(fieldName);
             if (Backup.FIELD_EPHEMERAL_OWNER.equals(fieldName)) {
                 ephemeralOwner = jp.getLongValue();
-            }
-            else if (Backup.FIELD_DATA.equals(fieldName)) {
+            } else if (Backup.FIELD_DATA.equals(fieldName)) {
                 if (jp.getCurrentToken() == JsonToken.VALUE_NULL) {
                     data = null;
                 }
                 else {
                     data = jp.getBinaryValue();
                 }
-            }
-            else if (Backup.FIELD_ACLS.equals(fieldName)) {
+            } else if (Backup.FIELD_ACLS.equals(fieldName)) {
                 readACLs(jp, acls);
-            }
-            else {
+            } else {
                 LOGGER.debug("Ignored field: {}", fieldName);
             }
         }
@@ -235,21 +230,18 @@ public class Restore implements Watcher {
         String scheme = null;
         String id = null;
         int perms = -1;
-        Set<String> seenFields = Sets.newHashSet();
+        final Set<String> seenFields = Sets.newHashSet();
         while (jp.nextToken() != JsonToken.END_OBJECT) {
             jp.nextValue();
             final String fieldName = jp.getCurrentName();
             seenFields.add(fieldName);
             if (Backup.FIELD_ACL_SCHEME.equals(fieldName)) {
                 scheme = jp.getValueAsString();
-            }
-            else if (Backup.FIELD_ACL_ID.equals(fieldName)) {
+            } else if (Backup.FIELD_ACL_ID.equals(fieldName)) {
                 id = jp.getValueAsString();
-            }
-            else if (Backup.FIELD_ACL_PERMS.equals(fieldName)) {
+            } else if (Backup.FIELD_ACL_PERMS.equals(fieldName)) {
                 perms = jp.getIntValue();
-            }
-            else {
+            } else {
                 throw new IOException("Unexpected field: " + fieldName);
             }
         }
@@ -259,16 +251,10 @@ public class Restore implements Watcher {
         final Id zkId;
         if (Ids.ANYONE_ID_UNSAFE.getScheme().equals(scheme) && Ids.ANYONE_ID_UNSAFE.getId().equals(id)) {
             zkId = Ids.ANYONE_ID_UNSAFE;
-        }
-        else {
+        } else {
             zkId = new Id(scheme, id);
         }
         return new ACL(perms, zkId);
-    }
-
-    @Override
-    public void process(WatchedEvent event) {
-        LOGGER.debug("Received watch event: {}", event);
     }
 
     private static void usage(CmdLineParser parser, int exitCode) {
@@ -299,14 +285,13 @@ public class Restore implements Watcher {
             if ("-".equals(options.inputFile)) {
                 LOGGER.info("Restoring from stdin");
                 is = new BufferedInputStream(System.in);
-            }
-            else {
+            } else {
                 is = new BufferedInputStream(new FileInputStream(options.inputFile));
             }
             if (options.compress) {
                 is = new GZIPInputStream(is);
             }
-            Restore restore = new Restore(new DefaultZooKeeperFactory(), options);
+            Restore restore = new Restore(options);
             restore.restore(is);
         } finally {
             Closeables.close(is, true);
